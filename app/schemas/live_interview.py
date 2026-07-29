@@ -30,15 +30,15 @@ class InterviewMetrics(BaseModel):
     consistency: int = 0
 
 class LiveInterviewStartRequest(BaseModel):
-    candidate_name: str = ""
+    candidate_name: Optional[str] = "Candidate"
     candidate_email: Optional[str] = None
-    exam: str = ""
-    subject: str = ""
-    language: str = "English"
-    difficulty: str = "Medium"
-    interview_mode: str = "Voice"
-    duration: int = 20
-    focus: str = "Subject Knowledge"
+    exam: Optional[str] = "Unknown"
+    subject: Optional[str] = "Unknown"
+    language: Optional[str] = "English"
+    difficulty: Optional[str] = "Medium"
+    interview_mode: Optional[str] = "Voice"
+    duration: Optional[int] = 20
+    focus: Optional[str] = "Subject Knowledge"
 
 class LiveInterviewStartResponse(BaseModel):
     session_id: str

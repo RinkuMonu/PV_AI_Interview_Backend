@@ -39,5 +39,6 @@ Output STRICTLY as a JSON object matching this schema:
     "clarity": 8,
     "consistency": 10
   }},
-  "struggled": false  // Set to true if the candidate failed to answer, was very confused, or got the answer completely wrong.
+  "struggled": false,
+  "keywords": ["...", "..."]  // Extract up to 3 important keywords from the candidate's answer for follow-up questions
 }}

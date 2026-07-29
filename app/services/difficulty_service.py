@@ -10,17 +10,21 @@ DIFFICULTY_LEVELS = [
 
 class DifficultyService:
     @staticmethod
-    def adjust_difficulty(current_difficulty: str, struggled: bool) -> str:
+    def adjust_difficulty(current_difficulty: str, candidate_summary: dict) -> str:
         try:
             current_index = DIFFICULTY_LEVELS.index(current_difficulty)
         except ValueError:
             current_index = 1 # Default to Medium
             
-        if struggled:
-            # Drop difficulty if they struggled, but not below Easy
+        avg_score = candidate_summary.get("average_score", 7.0)
+        
+        if avg_score < 5.0:
+            # Drop difficulty if they struggle, but not below Easy
             new_index = max(0, current_index - 1)
-        else:
+        elif avg_score >= 8.5:
             # Increase difficulty slowly as they succeed
             new_index = min(len(DIFFICULTY_LEVELS) - 1, current_index + 1)
+        else:
+            new_index = current_index
             
         return DIFFICULTY_LEVELS[new_index]

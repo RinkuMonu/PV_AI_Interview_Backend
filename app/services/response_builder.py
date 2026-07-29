@@ -4,6 +4,21 @@ from app.schemas.live_interview import VoiceStateResponse, ProcessingMetrics, Ca
 
 class ResponseBuilder:
     @staticmethod
+    def build_chat_response(raw_json: dict, tts_result: dict = None) -> 'LiveInterviewChatResponse':
+        from app.schemas.live_interview import LiveInterviewChatResponse
+        tts = tts_result or {}
+        return LiveInterviewChatResponse(
+            stage=raw_json.get("stage", "UNKNOWN"),
+            interviewer_message=raw_json.get("interviewer_message", ""),
+            next_action=raw_json.get("next_action", "WAIT_FOR_RESPONSE"),
+            avatar=raw_json.get("avatar", {}),
+            audio_url=tts.get("audio_url"),
+            voice_supported=tts.get("voice_supported"),
+            voice=tts.get("voice"),
+            language=tts.get("language")
+        )
+
+    @staticmethod
     def build_voice_state(
         request_id: str,
         session_id: str,

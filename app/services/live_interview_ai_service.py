@@ -95,81 +95,40 @@ Return JSON:
         experience_level: str,
         conversation_history: list
     ) -> dict:
-        if not settings.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY is not configured")
+        api_key = settings.GROQ_API_KEY or settings.OPENAI_API_KEY
+        if not api_key:
+            raise ValueError("API Key is not configured (Provide GROQ_API_KEY or OPENAI_API_KEY)")
             
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        base_url = "https://api.groq.com/openai/v1" if settings.GROQ_API_KEY else None
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        model_name = "llama-3.3-70b-versatile" if settings.GROQ_API_KEY else "gpt-4o-mini"
         
-        system_prompt = f"""You are a professional interviewer.
-
-Conduct interviews exactly like a human interviewer.
-
-Start by greeting the candidate.
-
-Example flow:
-
-Greeting
-↓
-How are you?
-↓
-Introduce yourself.
-↓
-Education
-↓
-Experience
-↓
-Projects
-↓
-Strengths
-↓
-Weaknesses
-↓
-Career Goals
-↓
-Technical Questions
-↓
-Scenario Questions
-↓
-Candidate Questions
-↓
-Closing
+        system_prompt = f"""You are a formal Government Exam Interview panel member. Be professional and respectful.
+Conduct interviews exactly like a human interviewer on an official panel.
 
 Rules:
-- Speak naturally.
-- Never sound robotic.
-- Ask one question only.
-- React to candidate answers.
-- Use previous conversation.
-- Never repeat questions.
-- Transition smoothly.
-- Encourage the candidate politely.
-- Do not reveal answers.
-- The exam is {exam}, subject is {subject}, language is {language}, experience level is {experience_level}.
-- For the "stage" field in JSON, strictly use one of: GREETING, INTRODUCTION, HR, PROJECT, TECHNICAL, SCENARIO, CLOSING.
+- Speak naturally but formally. Use phrases like: Thank you, I understand, Please explain further, Let us move to the next question.
+- NEVER use casual words like: Awesome, Great, Cool, Nice, Fantastic.
+- Keep responses concise (1-3 sentences).
+- Ask one question at a time.
+- React professionally to answers. If short, ask for explanation; if weak, move on.
+- Extract up to 3 important keywords from candidate's answer and return in "keywords". Use these for follow-ups in non-technical stages.
+- Never repeat questions. Do not reveal answers.
+- Exam: {exam}, Subject: {subject}, Language: {language}, Experience: {experience_level}.
+- For "stage", strictly use: GREETING, INTRODUCTION, HR, PROJECT, TECHNICAL, SCENARIO, CLOSING.
 
-Interview Language:
-{language}
+Language Rules:
+If Hindi: Speak natural spoken Hindi like an Indian interviewer.
+If English: Fluent English.
 
-Rules for Language:
-If language is Hindi:
-- Speak only Hindi.
-- Use natural spoken Hindi.
-- Avoid unnecessary English words.
-- Do not translate literally.
-- Speak like a real Indian interviewer.
-
-If language is English:
-- Use fluent English.
-
-Every response must include an avatar object that drives the 3D avatar's presence.
-Set the values based on the conversation context:
+Avatar Values (based on context):
 - emotion: neutral, smile, happy, serious, thinking, listening, encouraging, surprised, confident
 - animation: idle, greeting, speaking, listening, thinking, nod, agree, closing
 - gesture: wave, hand_open, point, none
 - head_direction: candidate, notes, away (default to candidate)
 - eye_contact: true or false
-- posture: professional, relaxed, leaning_forward (default to professional)
-- speaking_speed: normal, slow, fast (default to normal)
+- posture: professional, relaxed, leaning_forward
+- speaking_speed: normal, slow, fast
 
 Examples:
 Greeting -> emotion=smile, animation=greeting, gesture=wave
@@ -181,6 +140,8 @@ Return EXACTLY valid JSON matching:
 {{
    "stage":"INTRODUCTION",
    "interviewer_message":"...",
+   "keywords":["BCA", "FastAPI"],
+   "asked_follow_up":false,
    "next_action":"WAIT_FOR_RESPONSE",
    "avatar": {{
        "emotion": "smile",
@@ -196,8 +157,9 @@ Return EXACTLY valid JSON matching:
         # Format conversation history
         messages = [{"role": "system", "content": system_prompt}]
         
-        for turn in conversation_history:
-            # turn should be a dict with "role" and "content"
+        # Truncate conversation history to last 6 turns (to save token processing time)
+        recent_history = conversation_history[-6:] if conversation_history else []
+        for turn in recent_history:
             if "role" in turn and "content" in turn:
                 messages.append({"role": turn["role"], "content": turn["content"]})
                 
@@ -209,11 +171,11 @@ Return EXACTLY valid JSON matching:
         
         is_technical = await QuestionSelectorService.is_initialized(interview_id)
         if is_technical:
-            messages.append({"role": "system", "content": "The candidate just answered a technical question. Provide conversational feedback evaluating their answer, but DO NOT ask another technical question."})
+            messages.append({"role": "system", "content": "The candidate just answered a technical question. Evaluate the candidate's answer. If the answer is strong, you may ask exactly ONE contextual follow-up question and set 'asked_follow_up' to true. If the answer is weak, or you have already asked a follow-up for this topic, do NOT ask a follow-up and set 'asked_follow_up' to false."})
             
         try:
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model_name,
                 response_format={"type": "json_object"},
                 messages=messages,
                 temperature=0.7
@@ -227,18 +189,22 @@ Return EXACTLY valid JSON matching:
                 if not is_technical:
                     # Initialize it now
                     await QuestionSelectorService.initialize_technical_round(interview_id, limit=5)
+                    data["interviewer_message"] = "Let us move to the technical round. "
                 
-                next_q = await QuestionSelectorService.get_next_question(interview_id)
-                if next_q:
-                    # Override to append the next technical question
-                    if is_technical:
-                        data["interviewer_message"] += f"\n\nHere is your next question: {next_q}"
+                # Check if GPT asked a follow-up
+                asked_follow_up = data.get("asked_follow_up", False)
+                
+                if not asked_follow_up:
+                    next_q = await QuestionSelectorService.get_next_question(interview_id)
+                    if next_q:
+                        if is_technical:
+                            data["interviewer_message"] += f"\n\nHere is your next question: {next_q}"
+                        else:
+                            data["interviewer_message"] += f"{next_q}"
+                        await QuestionSelectorService.advance_question(interview_id)
                     else:
-                        data["interviewer_message"] = f"Let's move on to the technical round. {next_q}"
-                    await QuestionSelectorService.advance_question(interview_id)
-                else:
-                    data["stage"] = "CLOSING"
-                    data["interviewer_message"] += "\n\nThat concludes our technical round. Let's wrap up the interview."
+                        data["stage"] = "CLOSING"
+                        data["interviewer_message"] += "\n\nThat concludes our technical round. Let us wrap up the interview."
             
             # Save to MongoDB
             from app.core.database import get_db
@@ -263,6 +229,8 @@ Return EXACTLY valid JSON matching:
                 "stage": data.get("stage", "UNKNOWN"),
                 "next_action": data.get("next_action", "WAIT_FOR_RESPONSE"),
                 "avatar": data.get("avatar", {}),
+                "keywords": data.get("keywords", []),
+                "asked_follow_up": data.get("asked_follow_up", False),
                 "language": language,
                 "timestamp": datetime.datetime.utcnow()
             })
