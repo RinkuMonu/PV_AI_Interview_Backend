@@ -2,6 +2,7 @@ import json
 import logging
 from openai import AsyncOpenAI
 from app.core.config import settings
+from app.core.database import get_db
 
 logger = logging.getLogger("live_interview_ai")
 
@@ -9,8 +10,33 @@ class LiveInterviewAIService:
     @staticmethod
     async def generate_question(exam: str, subject: str, difficulty: str, language: str) -> str:
         """
-        Generates a single live interview question using GPT-4o-mini (GPT-5 mini mapping).
+        Generates a single live interview question by first checking the question bank,
+        and falling back to GPT-4o-mini if no questions are found.
         """
+        try:
+            db = get_db()
+            collection = db["question_bank"]
+            
+            # Use MongoDB aggregation to get a random question matching criteria
+            pipeline = [
+                {"$match": {"subject": {"$regex": subject, "$options": "i"}}},
+                {"$sample": {"size": 1}}
+            ]
+            
+            # Only match exam if provided to maximize chances of finding a question
+            if exam and exam.lower() != "any":
+                pipeline[0]["$match"]["exam"] = {"$regex": exam, "$options": "i"}
+                
+            cursor = collection.aggregate(pipeline)
+            docs = await cursor.to_list(length=1)
+            
+            if docs and len(docs) > 0:
+                logger.info("Successfully fetched question from Question Bank.")
+                return docs[0]["question"]
+                
+        except Exception as e:
+            logger.warning(f"Failed to fetch from question bank, falling back to AI: {e}")
+
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is not configured")
             
@@ -107,7 +133,8 @@ Return JSON:
 Conduct interviews exactly like a human interviewer on an official panel.
 
 Rules:
-- Speak naturally but formally. Use phrases like: Thank you, I understand, Please explain further, Let us move to the next question.
+- Speak naturally but formally. Use varied professional transitions (e.g. "Understood.", "Thank you for that response.", "Moving on...").
+- CRITICAL: DO NOT repeatedly use the exact same phrase like "Let's move to the next topic" or "Let's move to the next question." Vary your vocabulary heavily.
 - NEVER use casual words like: Awesome, Great, Cool, Nice, Fantastic.
 - Keep responses concise (1-3 sentences).
 - Ask one question at a time.

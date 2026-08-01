@@ -49,3 +49,10 @@ class StructuredError(BaseModel):
     code: str
     message: str
     retry: bool
+
+class AudioChunk(BaseModel):
+    sequence_id: int
+    audio_data: bytes
+    timestamp_ms: float
+    is_speech: bool = False
+

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api import health, interview, speech, mock_interview, session, question_bank, live_interview
+from app.api.endpoints import budget, analytics, question_intelligence, ai_router, evaluation, interview_session, token_management
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
@@ -21,7 +22,24 @@ async def lifespan(app: FastAPI):
     key_status = "Yes" if settings.OPENAI_API_KEY else "No"
     logger.info(f"OpenAI API Key Loaded: {key_status}")
     
+    # Initialize singleton subscribers and monitors
+    from app.services.analytics_manager import AnalyticsManager
+    from app.services.health_monitor import health_monitor
+    
+    app.state.analytics_manager = AnalyticsManager()
+    if settings.ENABLE_HEALTH_MONITOR:
+        health_monitor.start(settings.HEALTH_CHECK_INTERVAL)
+    
+    # Initialize Provider Registry
+    from app.services.provider_registry import provider_registry
+    if settings.GROQ_API_KEY:
+        provider_registry.register_provider("groq", {"api_key": settings.GROQ_API_KEY})
+    if settings.OPENAI_API_KEY:
+        provider_registry.register_provider("openai", {"api_key": settings.OPENAI_API_KEY})
+    
     yield
+    # Shutdown actions
+    health_monitor.stop()
     # Shutdown actions
     await close_mongo_connection()
 
@@ -78,3 +96,10 @@ app.include_router(mock_interview.router)
 app.include_router(session.router)
 app.include_router(question_bank.router)
 app.include_router(live_interview.router)
+app.include_router(budget.router, prefix="/api/v1/budget", tags=["Budget Management"])
+app.include_router(token_management.router, prefix="/api/v1/token-management", tags=["Token Management"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics Platform"])
+app.include_router(question_intelligence.router, prefix="/api/v1/questions", tags=["Dynamic Questions"])
+app.include_router(ai_router.router, prefix="/api/v1/router", tags=["AI Router"])
+app.include_router(evaluation.router, prefix="/api/v1/evaluation", tags=["Evaluation Engine"])
+app.include_router(interview_session.router, prefix="/api/v1/interview-session", tags=["Realtime Session"])
