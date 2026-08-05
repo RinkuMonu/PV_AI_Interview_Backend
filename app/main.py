@@ -50,6 +50,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
 # Configure CORS for local Next.js development
 app.add_middleware(
     CORSMiddleware,
