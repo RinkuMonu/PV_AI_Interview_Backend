@@ -100,7 +100,7 @@ class CacheManagerExtension(AIExtension):
         # We need provider, model, prompt_version. We assume groq_service provides them or we fallback.
         # In this context, we will use mock values if not available, or extract from kwargs
         provider = kwargs.get("provider", "groq")
-        model = kwargs.get("model", "llama3-70b-8192")
+        model = kwargs.get("model", "llama-3.3-70b-versatile")
         prompt_version = kwargs.get("prompt_version", "1.0")
         
         keys = self.manager.generate_cache_key(
@@ -165,7 +165,7 @@ class BudgetManagerExtension(AIExtension):
         
     async def pre_request(self, context: AIRequestContext, kwargs: dict, groq_service: Any = None) -> dict:
         # We need model to initialize budget
-        model = kwargs.get("model", "llama3-70b-8192")
+        model = kwargs.get("model", "llama-3.3-70b-versatile")
         
         # Initialize budget if missing
         budget = await self.manager.initialize_budget(context.interview_id or "unknown", model, context)

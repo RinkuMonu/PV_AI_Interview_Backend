@@ -44,4 +44,4 @@ class GroqProvider(BaseProvider):
         return capability in ["chat", "streaming", "json"]
 
     def list_models(self) -> List[str]:
-        return ["llama3-8b-8192", "llama3-70b-8192"]
+        return ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"]

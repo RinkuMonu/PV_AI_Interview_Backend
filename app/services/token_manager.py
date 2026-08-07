@@ -30,8 +30,8 @@ class TokenManager:
         (Costs per 1,000 tokens)
         """
         rates = {
-            "llama3-8b-8192": {"prompt": 0.00005, "completion": 0.00008},
-            "llama3-70b-8192": {"prompt": 0.00059, "completion": 0.00079},
+            "llama-3.1-8b-instant": {"prompt": 0.00005, "completion": 0.00008},
+            "llama-3.3-70b-versatile": {"prompt": 0.00059, "completion": 0.00079},
             "mixtral-8x7b-32768": {"prompt": 0.00024, "completion": 0.00024},
             "gemma-7b-it": {"prompt": 0.00007, "completion": 0.00007},
             "gpt-oss-20b": {"prompt": 0.00020, "completion": 0.00020} # Groq API (GPT-OSS-20B) dummy rate

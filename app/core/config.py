@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     
     # Phase 8 Router Configs
     DEFAULT_PROVIDER: str = "groq"
-    DEFAULT_MODEL: str = "llama3-8b-8192"
+    DEFAULT_MODEL: str = "llama-3.1-8b-instant"
     ENABLE_ROUTING: bool = True
     ENABLE_FALLBACK: bool = True
     ENABLE_HEALTH_MONITOR: bool = True

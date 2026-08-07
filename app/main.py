@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api import health, interview, speech, mock_interview, session, question_bank, live_interview
-from app.api.endpoints import budget, analytics, question_intelligence, ai_router, evaluation, interview_session, token_management
+from app.api.endpoints import budget, analytics, question_intelligence, ai_router, evaluation, interview_session, token_management, ai_tutor
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
@@ -104,3 +104,4 @@ app.include_router(question_intelligence.router, prefix="/api/v1/questions", tag
 app.include_router(ai_router.router, prefix="/api/v1/router", tags=["AI Router"])
 app.include_router(evaluation.router, prefix="/api/v1/evaluation", tags=["Evaluation Engine"])
 app.include_router(interview_session.router, prefix="/api/v1/interview-session", tags=["Realtime Session"])
+app.include_router(ai_tutor.router, prefix="/api/ai-tutor")

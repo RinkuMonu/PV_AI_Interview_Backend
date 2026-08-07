@@ -24,7 +24,7 @@ model_registry = ModelRegistry()
 # Load a default model strictly for fallback so testing works
 model_registry.load_from_config([
     {
-        "model_name": "llama3-8b-8192",
+        "model_name": "llama-3.1-8b-instant",
         "provider": "groq",
         "context_window": 8192,
         "input_cost": 0.05,
